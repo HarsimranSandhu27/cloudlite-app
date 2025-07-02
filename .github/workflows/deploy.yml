@@ -40,7 +40,7 @@ jobs:
       - name: SSH into EC2 and run the JAR
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.EC2_HOST }} 
+          host: host: 44.202.206.172 
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }} 
           port: 22
