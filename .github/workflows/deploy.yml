@@ -1,4 +1,4 @@
-name: Deploy to EC2
+name: Deploy Spring Boot App to EC2
 
 on:
   push:
@@ -6,43 +6,41 @@ on:
       - main
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Set up JDK 17
+      - name: Set up Java
         uses: actions/setup-java@v3
         with:
+          java-version: '17'
           distribution: 'temurin'
-          java-version: 17
 
       - name: Build the JAR
         run: mvn clean package -DskipTests
 
-      - name: Decode and save SSH key
-        run: |
-          echo "$EC2_SSH_KEY" | base64 -d > ec2_key.pem
-          chmod 600 ec2_key.pem
+      - name: Decode private key
+        run: echo "$EC2_SSH_KEY" | base64 -d > ec2_key.pem
 
-      - name: Copy JAR to EC2 instance
+      - name: Copy JAR to EC2
         uses: appleboy/scp-action@master
         with:
-          host: ${{ secrets.EC2_PUBLIC_IP }}
+          host: 44.202.206.172
           username: ec2-user
           key: ec2_key.pem
           port: 22
-          source: "./target/myapp-0.0.1-SNAPSHOT.jar"
+          source: "target/myapp-0.0.1-SNAPSHOT.jar"
           target: "/home/ec2-user/"
 
       - name: SSH into EC2 and run the JAR
         uses: appleboy/ssh-action@master
         with:
-          host: 44.202.206.172 
+          host: 44.202.206.172
           username: ec2-user
-          key: ${{ secrets.EC2_SSH_KEY }} 
+          key: ec2_key.pem
           port: 22
           script: |
             pkill -f 'myapp-0.0.1-SNAPSHOT.jar' || true
