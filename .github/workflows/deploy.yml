@@ -1,4 +1,4 @@
-name: Deploy Java App to EC2
+name: Deploy Spring Boot App to EC2
 
 on:
   push:
@@ -10,44 +10,36 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set up Java
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build the JAR
-        run: mvn clean package -DskipTests
+      - name: Build with Maven
+        run: mvn clean package --file pom.xml
 
       - name: Decode EC2 SSH Private Key
-        run: echo "$EC2_SSH_KEY" | base64 -d > ec2_key.pem
-        env:
-          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          echo "$EC2_SSH_KEY" | base64 -d > ec2_key.pem
+          chmod 600 ec2_key.pem
 
-      - name: Set permissions for key
-        run: chmod 600 ec2_key.pem
+      - name: Validate SSH Key Format
+        run: |
+          file ec2_key.pem
+          head -n 5 ec2_key.pem
 
       - name: Copy JAR to EC2 via SCP
-        uses: appleboy/scp-action@master
-        with:
-          host: 44.202.206.172
-          username: ec2-user
-          key: ec2_key.pem
-          port: 22
-          source: target/myapp-0.0.1-SNAPSHOT.jar
-          target: /home/ec2-user/
+        run: |
+          scp -i ec2_key.pem -o StrictHostKeyChecking=no target/myapp-0.0.1-SNAPSHOT.jar ec2-user@44.202.206.172:/home/ec2-user/
 
       - name: SSH into EC2 and run the JAR
-        uses: appleboy/ssh-action@master
-        with:
-          host: 44.202.206.172
-          username: ec2-user
-          key: ec2_key.pem
-          port: 22
-          script: |
+        run: |
+          ssh -i ec2_key.pem -o StrictHostKeyChecking=no ec2-user@44.202.206.172 << 'EOF'
             pkill -f 'myapp-0.0.1-SNAPSHOT.jar' || true
             nohup java -jar myapp-0.0.1-SNAPSHOT.jar > app.log 2>&1 &
+          EOF
 
